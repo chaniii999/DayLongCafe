@@ -45,7 +45,7 @@ public class SheetController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("사용자를 찾을 수 없습니다.");
         }
 
-        String displayMessage = user.getBackNumber() + "님의 소비 잔 수는 " + user.getCupsPurchased() + "입니다.";
+        String displayMessage = "010-****-" + user.getBackNumber() + " 님의 소비 잔 수는 " + user.getCupsPurchased() + "입니다.";
         return ResponseEntity.ok(displayMessage);
     }
 

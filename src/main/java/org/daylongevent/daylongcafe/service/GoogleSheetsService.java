@@ -76,9 +76,9 @@ public class GoogleSheetsService {
             String cellPhoneNumber = (String) row.get(0);
             String cupsPurchased = (String) row.get(1);
             if (cellPhoneNumber.equals(phoneNumber)) {
-                System.out.println("앙기모띠");
+                String backNumber = cellPhoneNumber.substring(4);
                 return User.builder()
-                   .backNumber(cellPhoneNumber)
+                   .backNumber(backNumber)
                     .cupsPurchased(Integer.parseInt(cupsPurchased))
                     .rank(1)
                    .build();
