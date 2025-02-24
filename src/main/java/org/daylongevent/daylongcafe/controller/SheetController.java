@@ -25,13 +25,9 @@ public class SheetController {
 
     @GetMapping("/")
     public ResponseEntity<?> home() throws GeneralSecurityException, IOException {
-        List<List<Object>> sheetData = sheetService.getSheetData();
-        if (sheetData.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
+        List<User> allUsersByRank = sheetService.getAllUsersByRank();
 
-
-        return ResponseEntity.ok(sheetData);
+        return ResponseEntity.ok(allUsersByRank);
     }
 
     @GetMapping("/search/{phoneNumber}/message")
@@ -72,5 +68,6 @@ public class SheetController {
 
         return ResponseEntity.ok(response);
     }
+
 
 }

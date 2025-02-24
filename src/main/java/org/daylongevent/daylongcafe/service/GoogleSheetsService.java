@@ -118,19 +118,19 @@ public class GoogleSheetsService {
 
         // 랭킹 계산
         List<List<Object>> rankedList = new ArrayList<>();
-        int rank = 0, prevCups = -1, count = 0;
+        int rank = 1, prevCups = -1, sameRankCount = 0;
 
         for (List<Object> user : tempList) {
             int cups = (int) user.get(1);
 
-            if (cups != prevCups) {
-                rank += count;
-                count = 1;
+            if (cups != prevCups) { // 컵 수가 달라지면 새로운 등수 적용
+                rank += sameRankCount;
+                sameRankCount = 1;
             } else {
-                count++;
+                sameRankCount++;
             }
 
-            rankedList.add(List.of(user.get(0), cups, rank + 1)); // (번호, 소비 잔 수, 랭킹) 저장
+            rankedList.add(List.of(user.get(0), cups, rank)); // (번호, 소비 잔 수, 랭킹) 저장
             prevCups = cups;
         }
 
@@ -171,5 +171,19 @@ public class GoogleSheetsService {
         }
         return 0;
     }
+
+    public List<User> getAllUsersByRank() throws IOException, GeneralSecurityException {
+        refreshCache(); // 캐시 갱신
+
+        return cachedUserList.stream()
+            .map(user -> User.builder()
+                .backNumber(user.get(0).toString().substring(4)) // 뒷번호만 저장
+                .cups((int) user.get(1)) // 소비 잔 수
+                .rank((int) user.get(2)) // 랭킹
+                .requiredCupsNextRank(searchCupsByRank((int)user.get(2))-(int) user.get(1))
+                .build())
+            .collect(Collectors.toList());
+    }
+
 
 }
