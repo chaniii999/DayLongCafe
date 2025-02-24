@@ -36,7 +36,7 @@ public class GoogleSheetsService {
     private static final String RANGE = "A1:B100";
 
 
-    public List<List<Object>> cachedUserList = new ArrayList<>();
+    public List<User> cachedUserList = new ArrayList<>();
     private long lastUpdated = 0;
     private static final long CACHE_DURATION = 5 * 60 * 1000;
 
@@ -66,25 +66,6 @@ public class GoogleSheetsService {
         return response.getValues();
     }
 
-    public User searchByPhoneNumber(String phoneNumber) throws IOException, GeneralSecurityException {
-        refreshCache();
-
-        // 조회한 사용자 랭킹 찾기
-        for (List<Object> user : cachedUserList) {
-            if (user.get(0).equals(phoneNumber)) {
-                String backNumber = phoneNumber.substring(4);
-                return User.builder()
-                    .backNumber(backNumber)
-                    .cups(Integer.parseInt(user.get(1).toString()))
-                    .rank(Integer.parseInt(user.get(2).toString())) // 랭킹 반영
-                    .requiredCupsNextRank(searchCupsByRank(Integer.parseInt(user.get(2).toString()))-Integer.parseInt(user.get(1).toString()))
-                    .build();
-            }
-        }
-
-        return null;
-    }
-
     public void refreshCache() throws IOException, GeneralSecurityException {
         long now = System.currentTimeMillis();
 
@@ -98,30 +79,31 @@ public class GoogleSheetsService {
             return;
         }
 
-        // (번호, 소비 잔 수) 변환
-        List<List<Object>> tempList = sheetData.stream()
+        List<User> tempList = sheetData.stream()
             .map(row -> {
-                if (row.size() < 2) return null;
+                if (row.size() < 2) return null;  // row에 값이 2개 미만이면 null 반환
                 try {
-                    List<Object> userList = new ArrayList<>();
-                    userList.add(row.get(0).toString());
-                    userList.add(Integer.parseInt(row.get(1).toString()));  // 소비 잔 수
-                    return userList;
+                    // User 빌더를 사용하여 User 객체 생성
+                    User user = User.builder()
+                        .backNumber(row.get(0).toString())  // 번호 설정
+                        .cups(Integer.parseInt(row.get(1).toString()))  // 소비 잔 수 설정
+                        .build();  // 빌드하여 User 객체 생성
+
+                    return user;
                 } catch (NumberFormatException e) {
-                    return null;
+                    return null;  // 숫자 형변환 실패 시 null 반환
                 }
             })
-            .filter(Objects::nonNull)
-            .sorted((a, b) -> Integer.compare(safeCastToInt(b.get(1)), safeCastToInt(a.get(1)))) // 내림차순 정렬
-            .toList();
-
+            .filter(Objects::nonNull)  // null 값을 걸러낸다.
+            .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 내림차순 정렬
+            .toList();  // 리스트로 수집
 
         // 랭킹 계산
-        List<List<Object>> rankedList = new ArrayList<>();
+        List<User> rankedList = new ArrayList<>();
         int rank = 1, prevCups = -1, sameRankCount = 0;
 
-        for (List<Object> user : tempList) {
-            int cups = (int) user.get(1);
+        for (User user : tempList) {
+            int cups = user.getCups();
 
             if (cups != prevCups) { // 컵 수가 달라지면 새로운 등수 적용
                 rank += sameRankCount;
@@ -130,16 +112,21 @@ public class GoogleSheetsService {
                 sameRankCount++;
             }
 
-            rankedList.add(List.of(user.get(0), cups, rank)); // (번호, 소비 잔 수, 랭킹) 저장
-            prevCups = cups;
+            // 랭킹을 User 객체에 설정
+            User rankedUser = User.builder()
+                .backNumber(user.getBackNumber())  // 기존 번호
+                .cups(user.getCups())  // 기존 잔 수
+                .rank(rank)  // 계산된 랭크
+                .build();  // 랭킹 반영된 User 객체 생성
+
+            rankedList.add(rankedUser); // 랭킹이 포함된 사용자 저장
+            prevCups = cups;  // 이전 컵 수 저장
         }
 
-        cachedUserList = rankedList;
+        cachedUserList = rankedList;  // 캐시 갱신
         lastUpdated = now;
-
-
-
     }
+
 
     private int safeCastToInt(Object obj) {
         if (obj instanceof Integer) {
@@ -154,6 +141,25 @@ public class GoogleSheetsService {
             return 0;
         }
     }
+    public User searchByPhoneNumber(String phoneNumber) throws IOException, GeneralSecurityException {
+        refreshCache();
+
+        String backNumber = phoneNumber.substring(4);
+        // 조회한 사용자 랭킹 찾기
+        for (User user : cachedUserList) {
+            if (user.getBackNumber().equals(phoneNumber)) {
+                return User.builder()
+                    .backNumber(backNumber)  // 새로운 번호 설정
+                    .cups(user.getCups())  // 기존 잔 수 유지
+                    .rank(user.getRank())  // 기존 순위 유지
+                    .requiredCupsNextRank(searchCupsByRank(user.getRank()) - user.getCups())  // 다음 순위로 가기 위한 잔 수 설정
+                    .build();  // User 객체 생성
+            }
+        }
+
+
+        return null;
+    }
 
     public int searchCupsByRank(int userRank) {
 
@@ -162,11 +168,11 @@ public class GoogleSheetsService {
         if (userRank <= 20) findRank = 5;
         if (userRank <= 5) findRank = userRank -1;
         if (userRank == 1) return 0;
-        for (List<Object>user : cachedUserList) {
+        for (User user : cachedUserList) {
             // 현재 랭킹과 맞는 사용자 찾기// 사용자 랭킹
-            if ((int) user.get(2) == findRank) {
+            if ((int) user.getRank() == findRank) {
                 // 해당 랭크의 소비 잔 수 반환
-                return (int) user.get(1);  // 소비 잔 수
+                return (int) user.getCups();  // 소비 잔 수
             }
         }
         return 0;
@@ -177,10 +183,10 @@ public class GoogleSheetsService {
 
         return cachedUserList.stream()
             .map(user -> User.builder()
-                .backNumber(user.get(0).toString().substring(4)) // 뒷번호만 저장
-                .cups((int) user.get(1)) // 소비 잔 수
-                .rank((int) user.get(2)) // 랭킹
-                .requiredCupsNextRank(searchCupsByRank((int)user.get(2))-(int) user.get(1))
+                .backNumber(user.getBackNumber()) // 뒷번호만 저장
+                .cups(user.getCups()) // 소비 잔 수
+                .rank(user.getRank()) // 랭킹
+                .requiredCupsNextRank(searchCupsByRank(user.getRank())-user.getCups())
                 .build())
             .collect(Collectors.toList());
     }
