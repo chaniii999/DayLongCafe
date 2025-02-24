@@ -7,15 +7,18 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.ValueRange;
+import jakarta.annotation.PostConstruct;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.daylongevent.daylongcafe.entity.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,11 +33,14 @@ public class GoogleSheetsService {
     @Value("${google.sheets.privateKey}")
     private String privateKey;
 
-    private static final String RANGE = "A1:B100"; // 전화번호, 구매한 잔 수
+    private static final String RANGE = "A1:B100";
 
-    /**
-     * Google Sheets API 클라이언트 생성
-     */
+
+    public List<List<Object>> cachedUserList = new ArrayList<>();
+    private long lastUpdated = 0;
+    private static final long CACHE_DURATION = 5 * 60 * 1000;
+
+
     private Sheets getSheetsService() throws GeneralSecurityException, IOException {
         String formattedPrivateKey = privateKey.replace("\\n", "\n");
 
@@ -50,10 +56,6 @@ public class GoogleSheetsService {
         ).setApplicationName("Google Sheets API Java").build();
     }
 
-
-    /**
-     * 구글 시트에서 데이터 조회
-     */
     public List<List<Object>> getSheetData() throws IOException, GeneralSecurityException {
         Sheets service = getSheetsService();
 
@@ -65,29 +67,109 @@ public class GoogleSheetsService {
     }
 
     public User searchByPhoneNumber(String phoneNumber) throws IOException, GeneralSecurityException {
-        List<List<Object>> values = getSheetData();
+        refreshCache();
 
-        if (values == null || values.isEmpty()) {
-            System.out.println("시트가 비어있음.");
-            return null;
-        }
-
-        for (List<Object> row : values) {
-            String cellPhoneNumber = (String) row.get(0);
-            String cupsPurchased = (String) row.get(1);
-            if (cellPhoneNumber.equals(phoneNumber)) {
-                String backNumber = cellPhoneNumber.substring(4);
+        // 조회한 사용자 랭킹 찾기
+        for (List<Object> user : cachedUserList) {
+            if (user.get(0).equals(phoneNumber)) {
+                String backNumber = phoneNumber.substring(4);
                 return User.builder()
-                   .backNumber(backNumber)
-                    .cupsPurchased(Integer.parseInt(cupsPurchased))
-                    .rank(1)
-                   .build();
+                    .backNumber(backNumber)
+                    .cups(Integer.parseInt(user.get(1).toString()))
+                    .rank(Integer.parseInt(user.get(2).toString())) // 랭킹 반영
+                    .requiredCupsNextRank(searchCupsByRank(Integer.parseInt(user.get(2).toString()))-Integer.parseInt(user.get(1).toString()))
+                    .build();
             }
         }
 
+        return null;
+    }
 
-        return null; // 전화번호가 없으면 null 반환
+    public void refreshCache() throws IOException, GeneralSecurityException {
+        long now = System.currentTimeMillis();
+
+        if (now - lastUpdated < CACHE_DURATION) {
+            return;
+        }
+
+        List<List<Object>> sheetData = getSheetData();
+
+        if (sheetData == null || sheetData.isEmpty()) {
+            return;
+        }
+
+        // (번호, 소비 잔 수) 변환
+        List<List<Object>> tempList = sheetData.stream()
+            .map(row -> {
+                if (row.size() < 2) return null;
+                try {
+                    List<Object> userList = new ArrayList<>();
+                    userList.add(row.get(0).toString());
+                    userList.add(Integer.parseInt(row.get(1).toString()));  // 소비 잔 수
+                    return userList;
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            })
+            .filter(Objects::nonNull)
+            .sorted((a, b) -> Integer.compare(safeCastToInt(b.get(1)), safeCastToInt(a.get(1)))) // 내림차순 정렬
+            .toList();
+
+
+        // 랭킹 계산
+        List<List<Object>> rankedList = new ArrayList<>();
+        int rank = 0, prevCups = -1, count = 0;
+
+        for (List<Object> user : tempList) {
+            int cups = (int) user.get(1);
+
+            if (cups != prevCups) {
+                rank += count;
+                count = 1;
+            } else {
+                count++;
+            }
+
+            rankedList.add(List.of(user.get(0), cups, rank + 1)); // (번호, 소비 잔 수, 랭킹) 저장
+            prevCups = cups;
+        }
+
+        cachedUserList = rankedList;
+        lastUpdated = now;
+
+
+
+    }
+
+    private int safeCastToInt(Object obj) {
+        if (obj instanceof Integer) {
+            return (int) obj;
+        } else if (obj instanceof String) {
+            try {
+                return Integer.parseInt((String) obj);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+    }
+
+    public int searchCupsByRank(int userRank) {
+
+        int findRank = 0;
+        if (userRank > 20) findRank = 20;
+        if (userRank <= 20) findRank = 5;
+        if (userRank <= 5) findRank = userRank -1;
+        if (userRank == 1) return 0;
+        for (List<Object>user : cachedUserList) {
+            // 현재 랭킹과 맞는 사용자 찾기// 사용자 랭킹
+            if ((int) user.get(2) == findRank) {
+                // 해당 랭크의 소비 잔 수 반환
+                return (int) user.get(1);  // 소비 잔 수
+            }
+        }
+        return 0;
     }
 
 }
-
