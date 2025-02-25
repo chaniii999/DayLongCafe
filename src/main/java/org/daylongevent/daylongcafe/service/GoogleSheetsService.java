@@ -10,6 +10,7 @@ import com.google.api.services.sheets.v4.model.ValueRange;
 import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.daylongevent.daylongcafe.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GoogleSheetsService {
 
     @Value("${google.sheets.spreadsheetId}")
@@ -97,19 +99,17 @@ public class GoogleSheetsService {
             .filter(Objects::nonNull)  // null 값을 걸러낸다.
             .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 내림차순 정렬
             .toList();  // 리스트로 수집
-
+        cachedUserList = tempList;
         // 랭킹 계산
         List<User> rankedList = new ArrayList<>();
-        int rank = 1, prevCups = -1, sameRankCount = 0;
+        int rank = 0, prevCups = -1, sameRankCount = 1;
 
         for (User user : tempList) {
             int cups = user.getCups();
 
             if (cups != prevCups) { // 컵 수가 달라지면 새로운 등수 적용
-                rank += sameRankCount;
-                sameRankCount = 1;
-            } else {
-                sameRankCount++;
+                rank += getSameCupsCount(cups);
+                log.info("Rank: " + rank + "getSameCupsCount: " + getSameCupsCount((cups)));
             }
 
             // 랭킹을 User 객체에 설정
@@ -179,7 +179,7 @@ public class GoogleSheetsService {
     }
 
     public List<User> getAllUsersByRank() throws IOException, GeneralSecurityException {
-        refreshCache(); // 캐시 갱신
+        refreshCache();
 
         return cachedUserList.stream()
             .map(user -> User.builder()
@@ -190,6 +190,14 @@ public class GoogleSheetsService {
                 .build())
             .collect(Collectors.toList());
     }
+
+    public int getSameCupsCount(int cups) throws IOException, GeneralSecurityException {
+
+        return (int) cachedUserList.stream()
+            .filter(user -> user.getCups() == cups)
+            .count();
+    }
+
 
 
 }
