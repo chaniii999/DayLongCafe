@@ -23,14 +23,15 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GoogleSheetsService {
 
-    @Value("${google.sheets.spreadsheetId}")
+    @Value("${GOOGLE_SHEETS_SPREADSHEET_ID}")
     private String spreadsheetId;
 
-    @Value("${google.sheets.clientEmail}")
+    @Value("${GOOGLE_SHEETS_CLIENT_EMAIL}")
     private String clientEmail;
 
-    @Value("${google.sheets.privateKey}")
+    @Value("${GOOGLE_SHEETS_PRIVATE_KEY}")
     private String privateKey;
+
 
     private static final String RANGE = "A1:B100";
 
