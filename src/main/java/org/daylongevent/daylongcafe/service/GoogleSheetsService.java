@@ -7,12 +7,9 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.ValueRange;
-import jakarta.annotation.PostConstruct;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.daylongevent.daylongcafe.entity.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -43,20 +40,30 @@ public class GoogleSheetsService {
     private static final long CACHE_DURATION = 5 * 60 * 1000;
 
 
+    private volatile Sheets sheetsService;
+
     private Sheets getSheetsService() throws GeneralSecurityException, IOException {
-        String formattedPrivateKey = privateKey.replace("\\n", "\n");
+        if (sheetsService == null) { // 지연 초기화 (Lazy Initialization)
+            synchronized (this) { // 동시성 문제 방지
+                if (sheetsService == null) {
+                    String formattedPrivateKey = privateKey.replace("\\n", "\n");
 
-        GoogleCredentials credentials = ServiceAccountCredentials.fromPkcs8(
-            clientEmail, clientEmail, formattedPrivateKey, null, Collections.singleton(SheetsScopes.SPREADSHEETS_READONLY)
-        );
-        HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+                    GoogleCredentials credentials = ServiceAccountCredentials.fromPkcs8(
+                        clientEmail, clientEmail, formattedPrivateKey, null, Collections.singleton(SheetsScopes.SPREADSHEETS_READONLY)
+                    );
+                    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
 
-        return new Sheets.Builder(
-            com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.newTrustedTransport(),
-            com.google.api.client.json.jackson2.JacksonFactory.getDefaultInstance(),
-            requestInitializer
-        ).setApplicationName("Google Sheets API Java").build();
+                    sheetsService = new Sheets.Builder(
+                        com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.newTrustedTransport(),
+                        com.google.api.client.json.jackson2.JacksonFactory.getDefaultInstance(),
+                        requestInitializer
+                    ).setApplicationName("Google Sheets API Java").build();
+                }
+            }
+        }
+        return sheetsService;
     }
+
 
     public List<List<Object>> getSheetData() throws IOException, GeneralSecurityException {
         Sheets service = getSheetsService();
@@ -108,8 +115,11 @@ public class GoogleSheetsService {
             int cups = user.getCups();
 
             if (cups != prevCups) { // 컵 수가 달라지면 새로운 등수 적용
-                rank += getSameCupsCount(cups);
-                log.info("Rank: " + rank + "getSameCupsCount: " + getSameCupsCount((cups)));
+                //rank += getSameCupsCount(cups);
+                rank += 1;
+            }
+            else {
+                sameRankCount++;
             }
 
             // 랭킹을 User 객체에 설정
@@ -152,7 +162,7 @@ public class GoogleSheetsService {
                     .backNumber(backNumber)  // 새로운 번호 설정
                     .cups(user.getCups())  // 기존 잔 수 유지
                     .rank(user.getRank())  // 기존 순위 유지
-                    .requiredCupsNextRank(searchCupsByRank(user.getRank()) - user.getCups())  // 다음 순위로 가기 위한 잔 수 설정
+                    .requiredCupsNextRank(searchNextCups(user.getRank()) - user.getCups())  // 다음 순위로 가기 위한 잔 수 설정
                     .build();  // User 객체 생성
             }
         }
@@ -161,19 +171,21 @@ public class GoogleSheetsService {
         return null;
     }
 
-    public int searchCupsByRank(int userRank) {
+    public int searchNextCups(int userRank) {
 
         int findRank = 0;
         if (userRank > 20) findRank = 20;
         if (userRank <= 20) findRank = 5;
         if (userRank <= 5) findRank = userRank -1;
         if (userRank == 1) return 0;
-        for (User user : cachedUserList) {
-            // 현재 랭킹과 맞는 사용자 찾기// 사용자 랭킹
-            if ((int) user.getRank() == findRank) {
-                // 해당 랭크의 소비 잔 수 반환
-                return (int) user.getCups();  // 소비 잔 수
+
+        while (findRank > 0) {
+            for (User user : cachedUserList) {
+                if (user.getRank() == findRank) {
+                    return user.getCups(); // 해당 순위 컵스 반환
+                }
             }
+            findRank--; // 만약 목표 순위가 없으면 상위 랭크 탐색
         }
         return 0;
     }
@@ -186,7 +198,7 @@ public class GoogleSheetsService {
                 .backNumber(user.getBackNumber()) // 뒷번호만 저장
                 .cups(user.getCups()) // 소비 잔 수
                 .rank(user.getRank()) // 랭킹
-                .requiredCupsNextRank(searchCupsByRank(user.getRank())-user.getCups())
+                .requiredCupsNextRank(Math.max(0, searchNextCups(user.getRank())-user.getCups()))
                 .build())
             .collect(Collectors.toList());
     }
