@@ -23,13 +23,21 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GoogleSheetsService {
 
-    @Value("${GOOGLE_SHEETS_SPREADSHEET_ID}")
+//    @Value("${GOOGLE_SHEETS_SPREADSHEET_ID}")
+//    private String spreadsheetId;
+//
+//    @Value("${GOOGLE_SHEETS_CLIENT_EMAIL}")
+//    private String clientEmail;
+//
+//    @Value("${GOOGLE_SHEETS_PRIVATE_KEY}")
+//    private String privateKey;
+    @Value("${google.sheets.spreadsheetId}")
     private String spreadsheetId;
 
-    @Value("${GOOGLE_SHEETS_CLIENT_EMAIL}")
+    @Value("${google.sheets.clientEmail}")
     private String clientEmail;
 
-    @Value("${GOOGLE_SHEETS_PRIVATE_KEY}")
+    @Value("${google.sheets.privateKey}")
     private String privateKey;
 
 
