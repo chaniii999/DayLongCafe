@@ -27,15 +27,18 @@ jobs:
 
       - name: Create .env file with GitHub Secrets
         run: |
-          echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
-          echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}" >> .env
-          echo "EC2_HOST=${{ secrets.EC2_HOST }}" >> .env
-          echo "EC2_SSH_PRIVATE_KEY=${{ secrets.EC2_SSH_PRIVATE_KEY }}" >> .env
-          echo "EC2_USER=${{ secrets.EC2_USER }}" >> .env
           echo "GOOGLE_SHEETS_CLIENT_EMAIL=${{ secrets.GOOGLE_SHEETS_CLIENT_EMAIL }}" >> .env
           echo "GOOGLE_SHEETS_PRIVATE_KEY=${{ secrets.GOOGLE_SHEETS_PRIVATE_KEY }}" >> .env
           echo "GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}" >> .env
           echo "SPRING_PROFILE=${{ secrets.SPRING_PROFILE }}" >> .env
+
+      # .env 파일 내용 확인
+      - name: Check .env file contents
+        run: cat .env
+
+      # .env 파일 존재 여부 확인
+      - name: Check if .env file exists
+        run: ls -l .env
 
       - name: Build and Push Docker Image
         run: |
