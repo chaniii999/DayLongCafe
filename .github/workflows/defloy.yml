@@ -31,6 +31,7 @@ jobs:
           echo "GOOGLE_SHEETS_PRIVATE_KEY=${{ secrets.GOOGLE_SHEETS_PRIVATE_KEY }}" >> .env
           echo "GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}" >> .env
           echo "SPRING_PROFILE=${{ secrets.SPRING_PROFILE }}" >> .env
+          cat .env
 
       # .env 파일 내용 확인
       - name: Check .env file contents
