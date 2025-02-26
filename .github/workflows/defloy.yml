@@ -20,15 +20,13 @@ jobs:
           java-version: '17'
 
       - name: Build with Gradle
-        run: |
-          chmod +x gradlew
-          ./gradlew build -x test
+        run: ./gradlew build -x test
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/daylongcafe:latest .
-          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/daylongcafe:latest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest .
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v0.1.7
@@ -39,5 +37,7 @@ jobs:
           script: |
             docker stop daylongcafe || true
             docker rm daylongcafe || true
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/daylongcafe:latest
-            docker run -d -p 8080:8080 --name daylongcafe ${{ secrets.DOCKERHUB_USERNAME }}/daylongcafe:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest
+            docker run -d -p 8080:8080 --name daylongcafe \
+              -e SPRING_PROFILE=${{ secrets.SPRING_PROFILE }} \
+              ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest

@@ -2,4 +2,5 @@ spring:
   application:
     name: DayLongCafe
   profiles:
-    active: local
+    active: ${SPRING_PROFILE:local}  # 기본값은 local
+
