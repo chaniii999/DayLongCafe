@@ -25,15 +25,6 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -x test
 
-      - name: Create .env file with GitHub Secrets
-        run: |
-          cat <<-'EOF' > .env
-          GOOGLE_SHEETS_CLIENT_EMAIL=${{ secrets.GOOGLE_SHEETS_CLIENT_EMAIL }}
-          GOOGLE_SHEETS_PRIVATE_KEY=${{ secrets.GOOGLE_SHEETS_PRIVATE_KEY }}
-          GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
-          SPRING_PROFILE=${{ secrets.SPRING_PROFILE }}
-          EOF
-
       - name: Build and Push Docker Image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest .
@@ -47,13 +38,11 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # Copy .env file to EC2 server
-            scp -i ${{ secrets.EC2_SSH_PRIVATE_KEY }} .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/.env
-            # Stop, remove old containers, pull new image
+            # Stop, remove old container, pull new image
             docker stop daylongcafe || true
             docker rm daylongcafe || true
             docker pull ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest
-            # Run new container with environment variables from .env file
+            # Run new container and mount the application-local.yml file as external configuration
             docker run -d -p 8080:8080 --name daylongcafe \
-              --env-file /home/ubuntu/.env \
+              -v /home/ubuntu/application-local.yml:/config/application-local.yml \
               ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest
