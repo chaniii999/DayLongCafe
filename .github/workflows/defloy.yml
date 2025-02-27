@@ -27,13 +27,12 @@ jobs:
 
       - name: Create .env file with GitHub Secrets
         run: |
-          
-          echo "GOOGLE_SHEETS_CLIENT_EMAIL=${{ secrets.GOOGLE_SHEETS_CLIENT_EMAIL }}" >> .env
-          echo "GOOGLE_SHEETS_PRIVATE_KEY=${{ secrets.GOOGLE_SHEETS_PRIVATE_KEY }}" >> .env
-          echo "GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}" >> .env
-          echo "SPRING_PROFILE=${{ secrets.SPRING_PROFILE }}" >> .env
-
-
+          cat <<-'EOF' > .env
+          GOOGLE_SHEETS_CLIENT_EMAIL=${{ secrets.GOOGLE_SHEETS_CLIENT_EMAIL }}
+          GOOGLE_SHEETS_PRIVATE_KEY=${{ secrets.GOOGLE_SHEETS_PRIVATE_KEY }}
+          GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
+          SPRING_PROFILE=${{ secrets.SPRING_PROFILE }}
+          EOF
 
       - name: Build and Push Docker Image
         run: |
