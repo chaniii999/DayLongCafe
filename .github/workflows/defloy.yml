@@ -44,5 +44,7 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest
             # Run new container and mount the application-local.yml file as external configuration
             docker run -d -p 8080:8080 --name daylongcafe \
-              -v /home/ubuntu/application-local.yml:/config/application-local.yml \
-              ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest
+            -v /home/ubuntu/application-local.yml:/config/application-local.yml \
+            -e SPRING_CONFIG_LOCATION=file:/config/application-local.yml \
+            ${{ secrets.DOCKER_USERNAME }}/daylongcafe:latest
+
