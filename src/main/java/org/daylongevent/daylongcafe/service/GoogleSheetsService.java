@@ -103,7 +103,7 @@ public class GoogleSheetsService {
                 try {
                     // User 빌더를 사용하여 User 객체 생성
                     User user = User.builder()
-                        .backNumber(row.get(0).toString().substring(row.get(0).toString().length() - 4))  // 번호 설정
+                        .backNumber(row.get(0).toString())  // 번호 설정
                         .cups(Integer.parseInt(row.get(1).toString()))  // 소비 잔 수 설정
                         .build();  // 빌드하여 User 객체 생성
 
