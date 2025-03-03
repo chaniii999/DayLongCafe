@@ -29,7 +29,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("https://daylong-event.vercel.app/event"));
+        config.setAllowedOrigins(List.of(
+            "https://daylong-event.vercel.app/event",
+            "http://localhost:3000" // localhost:3000 추가
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         config.setAllowCredentials(true);
 
