@@ -97,25 +97,54 @@ public class GoogleSheetsService {
             return;
         }
 
-        List<User> tempList = sheetData.stream()
-            .map(row -> {
-                if (row.size() < 2) return null;  // row에 값이 2개 미만이면 null 반환
-                try {
-                    // User 빌더를 사용하여 User 객체 생성
-                    User user = User.builder()
-                        .backNumber(row.get(0).toString())  // 번호 설정
-                        .cups(Integer.parseInt(row.get(1).toString()))  // 소비 잔 수 설정
-                        .build();  // 빌드하여 User 객체 생성
+        Map<String, Integer> phoneCupMap = new HashMap<>();
 
-                    return user;
-                } catch (NumberFormatException e) {
-                    return null;  // 숫자 형변환 실패 시 null 반환
-                }
-            })
-            .filter(Objects::nonNull)  // null 값을 걸러낸다.
-            .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 내림차순 정렬
+        sheetData.forEach(row -> {
+            if (row.size() < 2) return;  // row에 값이 2개 미만이면 skip
+            if (row.get(0).equals("") || row.get(1).equals("") ) return;
+            try {
+                String phoneNumber = row.get(0).toString();
+                int cups = Integer.parseInt(row.get(1).toString());
+
+                // 전화번호가 이미 맵에 있으면 기존 값에 더하고, 없으면 새로 추가
+                phoneCupMap.merge(phoneNumber, cups, Integer::sum);
+
+            } catch (NumberFormatException e) {
+                // 숫자 형변환 실패 시 무시 (다시 넘어가도록 처리)
+            }
+        });
+
+        List<User> tempList = phoneCupMap.entrySet().stream()
+            .map(entry -> User.builder()
+                .backNumber(entry.getKey())  // 전화번호
+                .cups(entry.getValue())  // 합산된 컵 수
+                .build())
+            .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 컵 수 내림차순 정렬
             .toList();  // 리스트로 수집
-        cachedUserList = tempList;
+
+        cachedUserList = tempList;  // 캐시 갱신
+
+
+
+//        List<User> tempList = sheetData.stream()
+//            .map(row -> {
+//                if (row.size() < 2) return null;  // row에 값이 2개 미만이면 null 반환
+//                try {
+//                    // User 빌더를 사용하여 User 객체 생성
+//                    User user = User.builder()
+//                        .backNumber(row.get(0).toString())  // 번호 설정
+//                        .cups(Integer.parseInt(row.get(1).toString()))  // 소비 잔 수 설정
+//                        .build();  // 빌드하여 User 객체 생성
+//
+//                    return user;
+//                } catch (NumberFormatException e) {
+//                    return null;  // 숫자 형변환 실패 시 null 반환
+//                }
+//            })
+//            .filter(Objects::nonNull)  // null 값을 걸러낸다.
+//            .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 내림차순 정렬
+//            .toList();  // 리스트로 수집
+//        cachedUserList = tempList;
         // 랭킹 계산
         List<User> rankedList = new ArrayList<>();
         int rank = 0, prevCups = -1, sameRankCount = 1;
