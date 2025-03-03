@@ -42,6 +42,8 @@ dependencies {
     // 구글 HTTP 클라이언트 추가
     implementation 'com.google.http-client:google-http-client:1.43.3'
 
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
 
     // Google API 클라이언트
     //implementation 'com.google.apis:google-api-java-client:2.0.0'
