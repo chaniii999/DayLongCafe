@@ -30,7 +30,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
-            "https://daylong-event.vercel.app/ranking",
+            "https://daylong-event.vercel.app",
             "http://localhost:3000" // localhost:3000 추가
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
