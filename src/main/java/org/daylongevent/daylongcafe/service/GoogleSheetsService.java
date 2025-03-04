@@ -124,27 +124,6 @@ public class GoogleSheetsService {
 
         cachedUserList = tempList;  // 캐시 갱신
 
-
-
-//        List<User> tempList = sheetData.stream()
-//            .map(row -> {
-//                if (row.size() < 2) return null;  // row에 값이 2개 미만이면 null 반환
-//                try {
-//                    // User 빌더를 사용하여 User 객체 생성
-//                    User user = User.builder()
-//                        .backNumber(row.get(0).toString())  // 번호 설정
-//                        .cups(Integer.parseInt(row.get(1).toString()))  // 소비 잔 수 설정
-//                        .build();  // 빌드하여 User 객체 생성
-//
-//                    return user;
-//                } catch (NumberFormatException e) {
-//                    return null;  // 숫자 형변환 실패 시 null 반환
-//                }
-//            })
-//            .filter(Objects::nonNull)  // null 값을 걸러낸다.
-//            .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 내림차순 정렬
-//            .toList();  // 리스트로 수집
-//        cachedUserList = tempList;
         // 랭킹 계산
         List<User> rankedList = new ArrayList<>();
         int rank = 0, prevCups = -1, sameRankCount = 1;
@@ -201,6 +180,7 @@ public class GoogleSheetsService {
                     .cups(user.getCups())  // 기존 잔 수 유지
                     .rank(user.getRank())  // 기존 순위 유지
                     .requiredCupsNextRank(searchNextCups(user.getRank()) - user.getCups())  // 다음 순위로 가기 위한 잔 수 설정
+                    .nextRank(searchNextRank(user.getRank()))
                     .build();  // User 객체 생성
             }
         }
@@ -222,6 +202,25 @@ public class GoogleSheetsService {
             for (User user : cachedUserList) {
                 if (user.getRank() == findRank) {
                     return user.getCups(); // 해당 순위 컵스 반환
+                }
+            }
+            findRank--; // 만약 목표 순위가 없으면 상위 랭크 탐색
+        }
+        return 0;
+    }
+
+    public int searchNextRank(int userRank) {
+
+        int findRank = 0;
+        if (userRank > 10) findRank = 10;
+        if (userRank <= 10) findRank = 5;
+        if (userRank == 5) findRank = 3;
+        if (userRank <= 4) findRank = userRank -1;
+        if (userRank == 1) return 0;
+        while (findRank > 0) {
+            for (User user : cachedUserList) {
+                if (user.getRank() == findRank) {
+                    return findRank;
                 }
             }
             findRank--; // 만약 목표 순위가 없으면 상위 랭크 탐색

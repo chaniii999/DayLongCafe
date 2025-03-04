@@ -13,7 +13,8 @@ public class User {
     private String backNumber;
     private int cups;
     private int rank;
-    private int requiredCupsNextRank; // 다음 리워드 순위에 들기위한 필요 잔 수
+    private int requiredCupsNextRank; // 다음 리워드 순위에 들기위한 필요 잔
+    private int nextRank;
 }
 
 // # 20위 이상인 경우

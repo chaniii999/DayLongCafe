@@ -61,6 +61,7 @@ public class SheetController {
         response.put("phoneNumber", "010-****-" + user.getBackNumber());
         response.put("cups", user.getCups());
         response.put("rank", user.getRank());
+        response.put("nextRank", user.getNextRank());
 
         if (user.getRank() > 1) {
             response.put("cupsRequiredNextRank", user.getRequiredCupsNextRank());
