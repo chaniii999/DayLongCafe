@@ -212,8 +212,8 @@ public class GoogleSheetsService {
     public int searchNextCups(int userRank) {
 
         int findRank = 0;
-        if (userRank > 20) findRank = 20;
-        if (userRank <= 20) findRank = 5;
+        if (userRank > 10) findRank = 10;
+        if (userRank <= 10) findRank = 5;
         if (userRank == 5) findRank = 3;
         if (userRank <= 4) findRank = userRank -1;
         if (userRank == 1) return 0;
