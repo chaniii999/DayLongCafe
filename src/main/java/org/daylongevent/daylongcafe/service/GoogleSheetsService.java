@@ -41,7 +41,7 @@ public class GoogleSheetsService {
     private String privateKey;
 
 
-    private static final String RANGE = "A1:B100";
+    private static final String RANGE = "A1:B300";
 
 
     public List<User> cachedUserList = new ArrayList<>();
