@@ -87,9 +87,9 @@ public class GoogleSheetsService {
     public void refreshCache() throws IOException, GeneralSecurityException {
         long now = System.currentTimeMillis();
 
-        if (now - lastUpdated < CACHE_DURATION) {
-            return;
-        }
+//        if (now - lastUpdated < CACHE_DURATION) {
+//            return;
+//        }
 
         List<List<Object>> sheetData = getSheetData();
 
