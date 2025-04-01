@@ -208,7 +208,7 @@ public class GoogleSheetsService {
         String logSheetRange = "log!A:D";
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        sdf.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
         String currentTime = sdf.format(new Date());
 
         // 기록할 데이터 리스트
