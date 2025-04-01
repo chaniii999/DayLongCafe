@@ -41,7 +41,8 @@ public class GoogleSheetsService {
     private String privateKey;
 
 
-    private static final String RANGE = "A1:B1000";
+    private static final String TOTAL_SALE_LIST_RANGE = "A1:B1000";
+    private static final String MEMBER_RANGE = "MEMBER!B1:D1000";
 
 
     public List<User> cachedUserList = new ArrayList<>();
@@ -78,7 +79,7 @@ public class GoogleSheetsService {
         Sheets service = getSheetsService();
 
         ValueRange response = service.spreadsheets().values()
-            .get(spreadsheetId, RANGE)
+            .get(spreadsheetId, TOTAL_SALE_LIST_RANGE)
             .execute();
 
         return response.getValues();
