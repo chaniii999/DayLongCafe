@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,14 +24,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GoogleSheetsService {
 
-//    @Value("${GOOGLE_SHEETS_SPREADSHEET_ID}")
-//    private String spreadsheetId;
-//
-//    @Value("${GOOGLE_SHEETS_CLIENT_EMAIL}")
-//    private String clientEmail;
-//
-//    @Value("${GOOGLE_SHEETS_PRIVATE_KEY}")
-//    private String privateKey;
     @Value("${google.sheets.spreadsheetId}")
     private String spreadsheetId;
 
@@ -46,9 +39,6 @@ public class GoogleSheetsService {
 
 
     public List<User> cachedUserList = new ArrayList<>();
-    private long lastUpdated = 0;
-    private static final long CACHE_DURATION = 5 * 60 * 1000;
-
 
     private volatile Sheets sheetsService;
 
@@ -59,7 +49,7 @@ public class GoogleSheetsService {
                     String formattedPrivateKey = privateKey.replace("\\n", "\n");
 
                     GoogleCredentials credentials = ServiceAccountCredentials.fromPkcs8(
-                        clientEmail, clientEmail, formattedPrivateKey, null, Collections.singleton(SheetsScopes.SPREADSHEETS_READONLY)
+                        clientEmail, clientEmail, formattedPrivateKey, null, Collections.singleton(SheetsScopes.SPREADSHEETS)
                     );
                     HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
 
@@ -75,7 +65,7 @@ public class GoogleSheetsService {
     }
 
 
-    public List<List<Object>> getSheetData() throws IOException, GeneralSecurityException {
+    public List<List<Object>> getSaleListSheetData() throws IOException, GeneralSecurityException {
         Sheets service = getSheetsService();
 
         ValueRange response = service.spreadsheets().values()
@@ -85,109 +75,158 @@ public class GoogleSheetsService {
         return response.getValues();
     }
 
+    public List<List<Object>> getMemberListSheetData() throws IOException, GeneralSecurityException {
+        Sheets service = getSheetsService();
+
+        ValueRange response = service.spreadsheets().values()
+                .get(spreadsheetId, MEMBER_RANGE)
+                .execute();
+
+        return response.getValues();
+    }
+
+
+
     public void refreshCache() throws IOException, GeneralSecurityException {
-        long now = System.currentTimeMillis();
 
-//        if (now - lastUpdated < CACHE_DURATION) {
-//            return;
-//        }
-
-        List<List<Object>> sheetData = getSheetData();
+        List<List<Object>> sheetData = getSaleListSheetData();
 
         if (sheetData == null || sheetData.isEmpty()) {
             return;
         }
 
+        Map<String, Integer> phoneCupMap = getPhoneCupsMapFromSheetData(sheetData);
+
+        cachedUserList = generateUserList(phoneCupMap);
+        cachedUserList = assignRankings(cachedUserList);
+    }
+
+
+
+    private Map<String, Integer> getPhoneCupsMapFromSheetData(List<List<Object>> sheetData) {
         Map<String, Integer> phoneCupMap = new HashMap<>();
 
         sheetData.forEach(row -> {
-            if (row.size() < 2) return;  // row에 값이 2개 미만이면 skip
-            if (row.get(0).equals("") || row.get(1).equals("") ) return;
+            if (row.size() < 2) return;  // 데이터가 충분하지 않으면 무시
+            if (row.get(0).equals("") || row.get(1).equals("")) return;
+
             try {
                 String phoneNumber = row.get(0).toString();
                 int cups = Integer.parseInt(row.get(1).toString());
 
-                // 전화번호가 이미 맵에 있으면 기존 값에 더하고, 없으면 새로 추가
+                // 기존 값이 있으면 더하고, 없으면 새로 추가
                 phoneCupMap.merge(phoneNumber, cups, Integer::sum);
 
             } catch (NumberFormatException e) {
-                // 숫자 형변환 실패 시 무시 (다시 넘어가도록 처리)
+                // 숫자 변환 실패 시 무시
             }
         });
 
-        List<User> tempList = phoneCupMap.entrySet().stream()
-            .map(entry -> User.builder()
-                .backNumber(entry.getKey())  // 전화번호
-                .cups(entry.getValue())  // 합산된 컵 수
-                .build())
-            .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 컵 수 내림차순 정렬
-            .toList();  // 리스트로 수집
+        return phoneCupMap;
+    }
 
-        cachedUserList = tempList;  // 캐시 갱신
+    private List<User> generateUserList(Map<String, Integer> phoneCupMap) {
+        return phoneCupMap.entrySet().stream()
+                .map(entry -> User.builder()
+                        .backNumber(entry.getKey())  // 전화번호
+                        .cups(entry.getValue())  // 합산된 컵 수
+                        .build())
+                .sorted((a, b) -> Integer.compare(b.getCups(), a.getCups()))  // 컵 수 내림차순 정렬
+                .toList();
+    }
 
-        // 랭킹 계산
+    private List<User> assignRankings(List<User> userList) {
         List<User> rankedList = new ArrayList<>();
-        int rank = 0, prevCups = -1, sameRankCount = 1;
+        int rank = 0, prevCups = -1;
 
-        for (User user : tempList) {
+        for (User user : userList) {
             int cups = user.getCups();
 
             if (cups != prevCups) { // 컵 수가 달라지면 새로운 등수 적용
-                //rank += getSameCupsCount(cups);
-                rank += 1;
-            }
-            else {
-                sameRankCount++;
+                rank++;
             }
 
             // 랭킹을 User 객체에 설정
-            User rankedUser = User.builder()
-                .backNumber(user.getBackNumber())  // 기존 번호
-                .cups(user.getCups())  // 기존 잔 수
-                .rank(rank)  // 계산된 랭크
-                .build();  // 랭킹 반영된 User 객체 생성
+            rankedList.add(User.builder()
+                    .backNumber(user.getBackNumber())  // 기존 번호
+                    .cups(user.getCups())  // 기존 잔 수
+                    .rank(rank)  // 계산된 랭크
+                    .build());
 
-            rankedList.add(rankedUser); // 랭킹이 포함된 사용자 저장
             prevCups = cups;  // 이전 컵 수 저장
         }
 
-        cachedUserList = rankedList;  // 캐시 갱신
-        lastUpdated = now;
+        return rankedList;
     }
 
 
-    private int safeCastToInt(Object obj) {
-        if (obj instanceof Integer) {
-            return (int) obj;
-        } else if (obj instanceof String) {
-            try {
-                return Integer.parseInt((String) obj);
-            } catch (NumberFormatException e) {
-                return 0;
-            }
-        } else {
-            return 0;
-        }
-    }
+
     public User searchByPhoneNumber(String phoneNumber) throws IOException, GeneralSecurityException {
         refreshCache();
+        String memberNumber = "10" + phoneNumber;
+        List<List<Object>> saleListSheetData = getMemberListSheetData();
+        String memberSex = "찾지못함.";
+        String memberBirthDate = "찾지못함.";
+        for (List<Object> row : saleListSheetData) {
+
+            try {
+                String sheetPhoneNumber = row.get(0).toString();
+                if (Objects.equals(sheetPhoneNumber, memberNumber)) {
+                    memberSex = row.get(1).toString();
+                    memberBirthDate = row.get(2).toString();
+                    break; // 필요한 정보 찾으면 루프 종료
+                }
+            } catch (Exception e) {
+                // 데이터 형 변환 실패 시 무시
+                continue;
+            }
+        }
 
         String backNumber = phoneNumber.substring(4);
         // 조회한 사용자 랭킹 찾기
         for (User user : cachedUserList) {
             if (user.getBackNumber().equals(phoneNumber)) {
-                return User.builder()
+                User foundUser = User.builder()
                     .backNumber(backNumber)  // 새로운 번호 설정
                     .cups(user.getCups())  // 기존 잔 수 유지
                     .rank(user.getRank())  // 기존 순위 유지
                     .requiredCupsNextRank(searchNextCups(user.getRank()) - user.getCups())  // 다음 순위로 가기 위한 잔 수 설정
                     .nextRank(searchNextRank(user.getRank()))
+                    .sex(memberSex)
+                    .birthDate(memberBirthDate)
                     .build();  // User 객체 생성
+                appendLogEntry(foundUser, memberNumber);
+                return foundUser;
             }
         }
 
-
         return null;
+    }
+
+    private void appendLogEntry(User user, String memberNumber) throws IOException, GeneralSecurityException {
+        Sheets service = getSheetsService();
+        String logSheetRange = "log!A:D";
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String currentTime = sdf.format(new Date());
+
+        // 기록할 데이터 리스트
+        List<Object> logEntry = Arrays.asList(
+                currentTime,          // 현재 시간
+                memberNumber, // 사용자 폰번호 (뒤 4자리)
+                user.getSex(),  // 성별
+                user.getBirthDate() // 생년월일
+        );
+
+        ValueRange appendBody = new ValueRange()
+                .setValues(Collections.singletonList(logEntry));
+
+        // Google Sheets에 데이터 추가 (append)
+        service.spreadsheets().values()
+                .append(spreadsheetId, logSheetRange, appendBody)
+                .setValueInputOption("RAW")
+                .execute();
     }
 
     public int searchNextCups(int userRank) {
@@ -241,14 +280,5 @@ public class GoogleSheetsService {
                 .build())
             .collect(Collectors.toList());
     }
-
-    public int getSameCupsCount(int cups) throws IOException, GeneralSecurityException {
-
-        return (int) cachedUserList.stream()
-            .filter(user -> user.getCups() == cups)
-            .count();
-    }
-
-
 
 }

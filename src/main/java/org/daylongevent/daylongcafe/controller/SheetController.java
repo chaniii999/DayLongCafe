@@ -41,10 +41,12 @@ public class SheetController {
         String displayMessage =
             "010-****-" + user.getBackNumber() + " 님의 소비 잔 수는 " + user.getCups() + "이고 "
                 + user.getRank() + "등입니다." +
-                "다음 랭킹까지" + user.getRequiredCupsNextRank() + "잔 남았습니다.";
+                "다음 랭킹까지" + user.getRequiredCupsNextRank() + "잔 남았습니다.\n" +
+                    "성별" + user.getSex() + "생일" + user.getBirthDate() + "입니다.";
 
         if (user.getRank() == 1) {
-            displayMessage = "010-****-" + user.getBackNumber() + " 님의 소비 잔 수는 " + user.getCups() + "이고 "+ user.getRank() + "등입니다.";
+            displayMessage = "010-****-" + user.getBackNumber() + " 님의 소비 잔 수는 " + user.getCups() + "이고 "+ user.getRank() + "등입니다.\n" +
+            "성별" + user.getSex() + "생일" + user.getBirthDate() + "입니다.";
         }
         return ResponseEntity.ok(displayMessage);
     }
@@ -69,6 +71,8 @@ public class SheetController {
 
         return ResponseEntity.ok(response);
     }
+
+
 
 
 }
