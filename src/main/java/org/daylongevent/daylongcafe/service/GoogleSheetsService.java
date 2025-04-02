@@ -165,7 +165,8 @@ public class GoogleSheetsService {
 
     public User searchByPhoneNumber(String phoneNumber) throws IOException, GeneralSecurityException {
         refreshCache();
-        String memberNumber = "010-" + phoneNumber.substring(0, 4) + "-" + phoneNumber.substring(4);
+        //String memberNumber = "010-" + phoneNumber.substring(0, 4) + "-" + phoneNumber.substring(4);
+        String memberNumber = "10" + phoneNumber;
         String memberSex = "찾지못함.";
         String memberBirthDate = "찾지못함.";
         for (List<Object> row : memberList) {
