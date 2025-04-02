@@ -39,6 +39,7 @@ public class GoogleSheetsService {
 
 
     public List<User> cachedUserList = new ArrayList<>();
+    public List<List<Object>> memberList = new ArrayList<>();
 
     private volatile Sheets sheetsService;
 
@@ -89,16 +90,17 @@ public class GoogleSheetsService {
 
     public void refreshCache() throws IOException, GeneralSecurityException {
 
-        List<List<Object>> sheetData = getSaleListSheetData();
+        List<List<Object>> saleData = getSaleListSheetData();
+        List<List<Object>> memberData = getMemberListSheetData();
 
-        if (sheetData == null || sheetData.isEmpty()) {
+        if (saleData == null || saleData.isEmpty()) {
             return;
         }
 
-        Map<String, Integer> phoneCupMap = getPhoneCupsMapFromSheetData(sheetData);
-
-        cachedUserList = generateUserList(phoneCupMap);
-        cachedUserList = assignRankings(cachedUserList);
+        Map<String, Integer> phoneCupMap = getPhoneCupsMapFromSheetData(saleData);
+        this.memberList = memberData;
+        this.cachedUserList = generateUserList(phoneCupMap);
+        this.cachedUserList = assignRankings(cachedUserList);
     }
 
 
@@ -163,11 +165,10 @@ public class GoogleSheetsService {
 
     public User searchByPhoneNumber(String phoneNumber) throws IOException, GeneralSecurityException {
         refreshCache();
-        String memberNumber = "10" + phoneNumber;
-        List<List<Object>> saleListSheetData = getMemberListSheetData();
+        String memberNumber = "010-" + phoneNumber.substring(0, 4) + "-" + phoneNumber.substring(4);
         String memberSex = "찾지못함.";
         String memberBirthDate = "찾지못함.";
-        for (List<Object> row : saleListSheetData) {
+        for (List<Object> row : memberList) {
 
             try {
                 String sheetPhoneNumber = row.get(0).toString();
